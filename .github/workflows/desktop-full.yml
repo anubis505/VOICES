@@ -1,0 +1,117 @@
+name: Desktop CI Full Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show workspace
+        run: |
+          pwd
+          ls -la
+
+      - name: Show node/npm
+        run: |
+          node -v
+          npm -v
+
+      - name: Print package.json
+        run: cat package.json
+
+  build-windows:
+    needs: validate
+    runs-on: windows-2025
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web (Vite)
+        run: npm run build
+
+      - name: Build Electron app (arch=${{ matrix.arch }})
+        run: npx electron-builder --win --${{ matrix.arch }} --config.directories.output=release/${{ matrix.arch }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.arch }}
+          path: release/${{ matrix.arch }}
+
+  smoke-check:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web (Vite) for smoke check
+        run: npm run build
+
+      - name: Run smoke check script
+        run: node scripts/ci-smoke-check.js
+
+  create-release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-x64
+          path: release
+
+      - name: Download arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-arm64
+          path: release
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "windows-build-${{ github.run_number }}"
+          name: "VOICES Windows build ${{ github.run_number }}"
+          files: |
+            release/**/VOICES-*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

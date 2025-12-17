@@ -1,0 +1,70 @@
+{
+  "name": "voxclon-ia---studio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "description": "VOICES Desktop application",
+  "author": "VOICES Team",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "desktop:dev": "ELECTRON_START_URL=http://localhost:5173 electron .",
+    "desktop:build": "npm run build && electron-builder --win --x64 --arm64",
+    "ci:electron-build": "npx electron-builder --win --x64 --arm64",
+    "ci:smoke": "node scripts/ci-smoke-check.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@google/genai": "^1.33.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^26.6.10",
+    "electron-builder": "^24.13.3",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "wait-on": "^7.2.0"
+  }
+
+  ,"build": {
+    "appId": "com.tuempresa.voices",
+    "productName": "VOICES",
+    "directories": {
+      "output": "dist_electron",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64","arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64","arm64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable-${arch}.${ext}"
+    }
+  }
+}
